@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Records</title>
+<link rel="icon" type="image/jpg" href="school logo.jpg"/>
+<style>
+body {
+    font-family: Poppins, sans-serif;
+    background: #e9fff0;
+    padding: 20px;
+    margin: 0;
+}
+
+/* SALVADOR RIO */
+
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+}
+
+.add-btn {
+    background: #147538;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    margin-right: 5px;
+    cursor: pointer;
+}
+.add-btn:hover { background: #0f5f2e; transform: scale(1.05); }
+
+.search-box {
+    width: 250px; /* smaller for right alignment */
+    padding: 10px;
+    border: 2px solid #147538;
+    border-radius: 8px;
+    font-size: 15px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+}
+th, td {
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+    text-align: center;
+}
+th { background: #147538; color: white; }
+button { padding: 5px 10px; border: none; border-radius: 6px; cursor: pointer; color: white; margin:2px 0;}
+.edit-btn { background: #1b9448; }
+.delete-btn { background: #c62828; }
+.add-offense-btn { background: #ff9800; }
+
+#status { margin-top: 10px; font-weight: bold; text-align: center; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    table, thead, tbody, th, td, tr { display: block; width: 100%; }
+    th { display: none; }
+    tr { margin-bottom: 15px; border: 1px solid #ccc; padding: 10px; border-radius: 10px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+    td { text-align: left; padding: 8px 5px; border-bottom: none; position: relative; }
+    td::before { content: attr(data-label); font-weight: bold; color: #147538; display: block; margin-bottom: 3px; }
+    .add-btn, .search-box { width: 100%; margin-bottom: 10px; }
+    button { width: 48%; margin-top: 5px; font-size: 14px; }
+    td[data-label="Actions"] button { width: 48%; margin-right: 2%; }
+}
+</style>
+</head>
+<body>
+
+<h2>📋 Student Records</h2>
+
+<div class="top-bar">
+    <div>
+        <button class="add-btn" onclick="window.location='index.html'">➕ Add New Record</button>
+        <button class="add-btn" onclick="logout()">🚪 Logout</button>
+    </div>
+    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Search student...">
+</div>
+
+<p id="status"></p>
+
+<table id="recordTable">
+  <tr>
+    <th>Name</th><th>Student Number</th><th>Course</th>
+    <th>Major</th><th>Minor</th><th>No. / Total Offenses</th><th>Actions</th>
+  </tr>
+</table>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
+
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyDFT7z-AmRLu8lig84D_tKA9OhF7joW9c0",
+  authDomain: "sasosystem-206d0.firebaseapp.com",
+  projectId: "sasosystem-206d0",
+  storageBucket: "sasosystem-206d0.firebasestorage.app",
+  messagingSenderId: "526763192518",
+  appId: "1:526763192518:web:b1f544270439e8664067c7"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+const status = document.getElementById("status");
+
+// Authentication Check
+onAuthStateChanged(auth, user => {
+    if(!user) window.location.href = "login.html";
+});
+
+// Logout
+window.logout = async () => {
+    await signOut(auth);
+    window.location.href = "login.html";
+}
+
+// Append date helper
+const appendDate = (text) => {
+  if(!text) return "";
+  const dateRegex = /\(\d{4}-\d{2}-\d{2}\)$/;
+  const today = new Date().toISOString().split('T')[0];
+  return dateRegex.test(text) ? text : `${text} (${today})`;
+}
+
+// Load records
+async function loadRecords(){
+  status.style.color = "black";
+  status.innerText = "Loading records...";
+  const table = document.getElementById("recordTable");
+  table.innerHTML = `<tr>
+    <th>Name</th><th>Student Number</th><th>Course</th>
+    <th>Major</th><th>Minor</th><th>No. / Total Offenses</th><th>Actions</th>
+  </tr>`;
+
+  try{
+    const snapshot = await getDocs(collection(db, "studentRecords"));
+    if(snapshot.empty){
+      status.innerText = "No records found.";
+      return;
+    }
+
+    snapshot.forEach(docSnap=>{
+      const rec = docSnap.data();
+      const row = table.insertRow();
+      const major = appendDate(rec.major);
+      const minor = appendDate(rec.minor);
+      const totalOffenses = rec.offense_count || [major, minor].filter(o => o && o.trim() !== "").length;
+
+      row.insertCell(0).outerHTML = `<td data-label="Name">${rec.name}</td>`;
+      row.insertCell(1).outerHTML = `<td data-label="Student Number">${rec.student_number}</td>`;
+      row.insertCell(2).outerHTML = `<td data-label="Course">${rec.course}</td>`;
+      row.insertCell(3).outerHTML = `<td data-label="Major">${major}</td>`;
+      row.insertCell(4).outerHTML = `<td data-label="Minor">${minor}</td>`;
+      row.insertCell(5).outerHTML = `<td data-label="Offenses">${totalOffenses}</td>`;
+      row.insertCell(6).outerHTML = `<td data-label="Actions">
+        <button class="edit-btn" onclick="editRecord('${docSnap.id}','${rec.name}','${rec.student_number}','${rec.course}','${rec.major || ''}','${rec.minor || ''}','${totalOffenses}')">Edit</button>
+        <button class="delete-btn" onclick="deleteRecord('${docSnap.id}')">Delete</button>
+        <button class="add-offense-btn" onclick="addOffense('${docSnap.id}','${rec.major || ''}','${rec.minor || ''}','${totalOffenses}')">➕ Add Offense</button>
+      </td>`;
+    });
+
+    status.style.color = "green";
+    status.innerText = "Records loaded successfully.";
+  }catch(err){
+    status.style.color="red";
+    status.innerText = "Error loading: "+err.message;
+  }
+}
+
+// Delete record
+async function deleteRecord(id){
+  if(confirm("Delete this record?")){
+    try{
+      await deleteDoc(doc(db,"studentRecords",id));
+      status.style.color="green";
+      status.innerText = "Record deleted!";
+      loadRecords();
+    }catch(err){
+      status.style.color="red";
+      status.innerText = "Error deleting: "+err.message;
+    }
+  }
+}
+
+// Edit record
+async function editRecord(id,name,student_number,course,major,minor,totalOffenses){
+  const newName = prompt("Name:", name);
+  if(!newName) return;
+  const newNumber = prompt("Student Number:", student_number);
+  const newCourse = prompt("Course:", course);
+  const newMajor = prompt("Major Offense:", major);
+  const newMinor = prompt("Minor Offense:", minor);
+  const newTotal = prompt("Total Offenses:", totalOffenses || "0");
+
+  try{
+    await updateDoc(doc(db,"studentRecords",id), {
+      name: newName,
+      student_number: newNumber,
+      course: newCourse,
+      major: appendDate(newMajor),
+      minor: appendDate(newMinor),
+      offense_count: parseInt(newTotal) || 0
+    });
+    status.style.color="green";
+    status.innerText = "Record updated!";
+    loadRecords();
+  }catch(err){
+    status.style.color="red";
+    status.innerText = "Error updating: "+err.message;
+  }
+}
+
+
+async function addOffense(id,currentMajor,currentMinor,currentOffenseCount){
+  const type = prompt("Add offense type: Major or Minor?").toLowerCase();
+  if(type !== "major" && type !== "minor") return alert("Invalid type!");
+
+  const offenseText = prompt(`Enter ${type} offense:`);
+  if(!offenseText) return;
+
+  const today = new Date().toISOString().split('T')[0];
+  const offenseWithDate = `${offenseText} (${today})`;
+
+  let updatedData = {};
+  if(type === "major") updatedData.major = currentMajor ? currentMajor + " | " + offenseWithDate : offenseWithDate;
+  else updatedData.minor = currentMinor ? currentMinor + " | " + offenseWithDate : offenseWithDate;
+
+  updatedData.offense_count = (parseInt(currentOffenseCount) || 0) + 1;
+
+  try{
+    await updateDoc(doc(db,"studentRecords",id), updatedData);
+    status.style.color="green";
+    status.innerText = "Offense added!";
+    loadRecords();
+  }catch(err){
+    status.style.color="red";
+    status.innerText = "Error adding offense: "+err.message;
+  }
+}
+
+
+document.getElementById("searchInput").addEventListener("keyup", function(){
+  const filter = this.value.toLowerCase();
+  const rows = document.querySelectorAll("#recordTable tr:not(:first-child)");
+  rows.forEach(row => {
+    const text = row.innerText.toLowerCase();
+    row.style.display = text.includes(filter) ? "" : "none";
+  });
+});
+
+
+window.deleteRecord = deleteRecord;
+window.editRecord = editRecord;
+window.addOffense = addOffense;
+
+/*  credit
+SALVADOR RIO */
+loadRecords();
+</script>
+
+</body>
+</html>
+

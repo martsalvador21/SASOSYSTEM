@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Add Student Record</title>
+<link rel="icon" type="image/jpg" href="school logo.jpg"/>
+<style>
+body {
+    font-family: 'Poppins', sans-serif;
+    background: #e9fff0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+}
+.container {
+    background: white;
+    padding: 30px 25px;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+.container h2 {
+    text-align: center;
+    color: #147538;
+    margin-bottom: 20px;
+}
+input, button {
+    width: 100%;
+    padding: 14px;
+    margin: 8px 0;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+input:focus {
+    border-color: #285538;
+    outline: none;
+    box-shadow: 0 0 5px rgba(20, 117, 56, 0.4);
+}
+button {
+    background: #147538;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    font-size: 16px;
+}
+button:hover { background: #0f5f2e; }
+button + button { background: #1a521b; margin-top: 10px; }
+button + button:hover { background: #3e8e41; }
+#status { font-size: 14px; margin-top: 10px; text-align: center; color: red; }
+@media(max-width: 480px){
+    .container { padding: 20px 15px; }
+    input, button { padding: 12px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+<h2>Add Student Record</h2>
+<form id="recordForm">
+    <input type="text" id="name" placeholder="Name" required>
+    <input type="text" id="student_number" placeholder="Student Number" required>
+    <input type="text" id="course" placeholder="Course/Section" required>
+    <input type="text" id="major" placeholder="Major Offense">
+    <input type="text" id="minor" placeholder="Minor Offense">
+    <button type="button" id="saveBtn">💾 Save Record</button>
+    <button type="button" onclick="window.location='records.html'">📋 View Records</button>
+    <button type="button" onclick="logout()">🚪 Logout</button>
+    <p id="status"></p>
+</form>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDFT7z-AmRLu8lig84D_tKA9OhF7joW9c0",
+  authDomain: "sasosystem-206d0.firebaseapp.com",
+  projectId: "sasosystem-206d0",
+  storageBucket: "sasosystem-206d0.firebasestorage.app",
+  messagingSenderId: "526763192518",
+  appId: "1:526763192518:web:b1f544270439e8664067c7"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+const status = document.getElementById("status");
+
+onAuthStateChanged(auth, user => {
+    if(!user) window.location.href = "login.html";
+});
+
+window.logout = async () => {
+    await signOut(auth);
+    window.location.href = "login.html";
+};
+
+document.getElementById("saveBtn").addEventListener("click", async () => {
+    const name = document.getElementById("name").value.trim();
+    const student_number = document.getElementById("student_number").value.trim();
+    const course = document.getElementById("course").value.trim();
+    const major = document.getElementById("major").value.trim();
+    const minor = document.getElementById("minor").value.trim();
+
+    if(!name || !student_number || !course){
+        status.style.color = "red";
+        status.innerText = "Please fill all required fields!";
+        return;
+    }
+
+    try {
+        await addDoc(collection(db, "studentRecords"), { name, student_number, course, major, minor });
+        status.style.color = "green";
+        status.innerText = "Record saved successfully!";
+        document.getElementById("recordForm").reset();
+    } catch (err) {
+        status.style.color = "red";
+        status.innerText = "Error saving record: " + err.message;
+    }
+});
+</script>
+
+</body>
+</html>
