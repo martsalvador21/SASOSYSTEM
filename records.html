@@ -90,15 +90,11 @@ button { padding: 5px 10px; border: none; border-radius: 6px; cursor: pointer; c
 <p id="status"></p>
 
 <table id="recordTable">
-  <tr>
-    <th>Name</th><th>Student Number</th><th>Course</th>
-    <th>Major</th><th>Minor</th><th>No. / Total Offenses</th><th>Actions</th>
-  </tr>
-</table>
+  </table>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
 
 // Firebase config
@@ -127,22 +123,22 @@ window.logout = async () => {
     window.location.href = "login.html";
 }
 
-// Append date helper
-const appendDate = (text) => {
-  if(!text) return "";
-  const dateRegex = /\(\d{4}-\d{2}-\d{2}\)$/;
-  const today = new Date().toISOString().split('T')[0];
-  return dateRegex.test(text) ? text : `${text} (${today})`;
-}
-
 // Load records
 async function loadRecords(){
   status.style.color = "black";
   status.innerText = "Loading records...";
   const table = document.getElementById("recordTable");
+  
+  // Table Header
   table.innerHTML = `<tr>
-    <th>Name</th><th>Student Number</th><th>Course</th>
-    <th>Major</th><th>Minor</th><th>No. / Total Offenses</th><th>Actions</th>
+    <th>Name</th>
+    <th>Student Number</th>
+    <th>Course</th>
+    <th>Major</th>
+    <th>Minor</th>
+    <th>No. / Total Offenses</th>
+    <th>Date</th>
+    <th>Actions</th>
   </tr>`;
 
   try{
@@ -155,20 +151,38 @@ async function loadRecords(){
     snapshot.forEach(docSnap=>{
       const rec = docSnap.data();
       const row = table.insertRow();
-      const major = appendDate(rec.major);
-      const minor = appendDate(rec.minor);
+      
+      const major = rec.major || "";
+      const minor = rec.minor || "";
       const totalOffenses = rec.offense_count || [major, minor].filter(o => o && o.trim() !== "").length;
 
-      row.insertCell(0).outerHTML = `<td data-label="Name">${rec.name}</td>`;
-      row.insertCell(1).outerHTML = `<td data-label="Student Number">${rec.student_number}</td>`;
-      row.insertCell(2).outerHTML = `<td data-label="Course">${rec.course}</td>`;
+      // Format Date
+      let dateStr = "N/A";
+      if(rec.last_updated){
+          try { dateStr = rec.last_updated.toDate().toISOString().split('T')[0]; } 
+          catch(e) { dateStr = "Just now"; }
+      }
+
+      row.insertCell(0).outerHTML = `<td data-label="Name">${rec.name || ""}</td>`;
+      row.insertCell(1).outerHTML = `<td data-label="Student Number">${rec.student_number || ""}</td>`;
+      row.insertCell(2).outerHTML = `<td data-label="Course">${rec.course || ""}</td>`;
       row.insertCell(3).outerHTML = `<td data-label="Major">${major}</td>`;
       row.insertCell(4).outerHTML = `<td data-label="Minor">${minor}</td>`;
       row.insertCell(5).outerHTML = `<td data-label="Offenses">${totalOffenses}</td>`;
-      row.insertCell(6).outerHTML = `<td data-label="Actions">
-        <button class="edit-btn" onclick="editRecord('${docSnap.id}','${rec.name}','${rec.student_number}','${rec.course}','${rec.major || ''}','${rec.minor || ''}','${totalOffenses}')">Edit</button>
+      row.insertCell(6).outerHTML = `<td data-label="Date">${dateStr}</td>`;
+
+      // Safe strings for edit function
+      const safeName = (rec.name || '').replace(/'/g, "\\'");
+      const safeNum = (rec.student_number || '').replace(/'/g, "\\'");
+      const safeCourse = (rec.course || '').replace(/'/g, "\\'");
+      const safeMajor = major.replace(/'/g, "\\'");
+      const safeMinor = minor.replace(/'/g, "\\'");
+
+      // DITO ANG PAGBABAGO: Ang "Add Offense" button ay lilipat na ng page
+      row.insertCell(7).outerHTML = `<td data-label="Actions">
+        <button class="edit-btn" onclick="editRecord('${docSnap.id}','${safeName}','${safeNum}','${safeCourse}','${safeMajor}','${safeMinor}','${totalOffenses}')">Edit</button>
         <button class="delete-btn" onclick="deleteRecord('${docSnap.id}')">Delete</button>
-        <button class="add-offense-btn" onclick="addOffense('${docSnap.id}','${rec.major || ''}','${rec.minor || ''}','${totalOffenses}')">➕ Add Offense</button>
+        <button class="add-offense-btn" onclick="window.location.href='add_offense.html?id=${docSnap.id}'">➕ Add Offense</button>
       </td>`;
     });
 
@@ -198,7 +212,7 @@ async function deleteRecord(id){
 // Edit record
 async function editRecord(id,name,student_number,course,major,minor,totalOffenses){
   const newName = prompt("Name:", name);
-  if(!newName) return;
+  if(!newName) return; 
   const newNumber = prompt("Student Number:", student_number);
   const newCourse = prompt("Course:", course);
   const newMajor = prompt("Major Offense:", major);
@@ -210,9 +224,10 @@ async function editRecord(id,name,student_number,course,major,minor,totalOffense
       name: newName,
       student_number: newNumber,
       course: newCourse,
-      major: appendDate(newMajor),
-      minor: appendDate(newMinor),
-      offense_count: parseInt(newTotal) || 0
+      major: newMajor, 
+      minor: newMinor, 
+      offense_count: parseInt(newTotal, 10) || 0,
+      last_updated: serverTimestamp()
     });
     status.style.color="green";
     status.innerText = "Record updated!";
@@ -223,35 +238,7 @@ async function editRecord(id,name,student_number,course,major,minor,totalOffense
   }
 }
 
-
-async function addOffense(id,currentMajor,currentMinor,currentOffenseCount){
-  const type = prompt("Add offense type: Major or Minor?").toLowerCase();
-  if(type !== "major" && type !== "minor") return alert("Invalid type!");
-
-  const offenseText = prompt(`Enter ${type} offense:`);
-  if(!offenseText) return;
-
-  const today = new Date().toISOString().split('T')[0];
-  const offenseWithDate = `${offenseText} (${today})`;
-
-  let updatedData = {};
-  if(type === "major") updatedData.major = currentMajor ? currentMajor + " | " + offenseWithDate : offenseWithDate;
-  else updatedData.minor = currentMinor ? currentMinor + " | " + offenseWithDate : offenseWithDate;
-
-  updatedData.offense_count = (parseInt(currentOffenseCount) || 0) + 1;
-
-  try{
-    await updateDoc(doc(db,"studentRecords",id), updatedData);
-    status.style.color="green";
-    status.innerText = "Offense added!";
-    loadRecords();
-  }catch(err){
-    status.style.color="red";
-    status.innerText = "Error adding offense: "+err.message;
-  }
-}
-
-
+// Search Functionality
 document.getElementById("searchInput").addEventListener("keyup", function(){
   const filter = this.value.toLowerCase();
   const rows = document.querySelectorAll("#recordTable tr:not(:first-child)");
@@ -261,16 +248,11 @@ document.getElementById("searchInput").addEventListener("keyup", function(){
   });
 });
 
-
 window.deleteRecord = deleteRecord;
 window.editRecord = editRecord;
-window.addOffense = addOffense;
 
-/*  credit
-SALVADOR RIO */
 loadRecords();
 </script>
 
 </body>
 </html>
-

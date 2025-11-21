@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Add Offense</title>
+<link rel="icon" type="image/jpg" href="school logo.jpg"/>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+<style>
+    body {
+        font-family: 'Poppins', sans-serif;
+        background: linear-gradient(135deg, #e9fff0 0%, #c1e8cc 100%);
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+    }
+
+    .container {
+        background: #ffffff;
+        padding: 40px;
+        border-radius: 15px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        width: 100%;
+        max-width: 480px;
+        border-top: 6px solid #147538; /* Green accent top */
+        animation: fadeIn 0.5s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 {
+        text-align: center;
+        color: #147538;
+        margin-bottom: 25px;
+        font-weight: 600;
+        font-size: 24px;
+    }
+
+    .student-info-box {
+        background: #f1f8e9;
+        color: #2e7d32;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+        font-weight: 500;
+        margin-bottom: 25px;
+        border-left: 5px solid #147538;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    label {
+        font-weight: 500;
+        color: #444;
+        margin-top: 15px;
+        display: block;
+        font-size: 14px;
+    }
+
+    /* Styled Inputs */
+    input, select {
+        width: 100%;
+        padding: 12px 15px;
+        margin-top: 8px;
+        border: 2px solid #eee;
+        border-radius: 8px;
+        box-sizing: border-box;
+        font-family: 'Poppins', sans-serif;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: #fafafa;
+    }
+
+    input:focus, select:focus {
+        border-color: #147538;
+        background: #fff;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(20, 117, 56, 0.1);
+    }
+
+    .btn-group {
+        margin-top: 30px;
+        display: flex;
+        gap: 15px;
+    }
+
+    button {
+        flex: 1;
+        padding: 14px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 15px;
+        transition: transform 0.2s, box-shadow 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .save-btn {
+        background: #147538;
+        color: white;
+        box-shadow: 0 4px 6px rgba(20, 117, 56, 0.2);
+    }
+    .save-btn:hover {
+        background: #0f5f2e;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(20, 117, 56, 0.3);
+    }
+
+    .cancel-btn {
+        background: #fff;
+        color: #666;
+        border: 2px solid #ddd;
+    }
+    .cancel-btn:hover {
+        background: #f5f5f5;
+        color: #333;
+        border-color: #bbb;
+    }
+
+    /* Responsive Mobile */
+    @media (max-width: 480px) {
+        .container { padding: 25px; }
+        h2 { font-size: 20px; }
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h2><i class="fas fa-user-edit"></i> Add Offense Record</h2>
+    
+    <div id="studentNameDisplay" class="student-info-box">
+        <i class="fas fa-spinner fa-spin"></i> Loading student info...
+    </div>
+
+    <form id="offenseForm">
+        
+        <label><i class="fas fa-exclamation-circle"></i> Offense Type</label>
+        <select id="offenseType" required>
+            <option value="minor">🟡 Minor Offense</option>
+            <option value="major">🔴 Major Offense</option>
+        </select>
+
+        <label><i class="fas fa-pen"></i> Description</label>
+        <input type="text" id="offenseDesc" placeholder="e.g. Improper Uniform, Late" required>
+
+        <label><i class="far fa-calendar-alt"></i> Date of Offense</label>
+        <input type="date" id="offenseDate" required>
+
+        <div class="btn-group">
+            <button type="button" class="cancel-btn" onclick="window.location.href='records.html'">
+                Cancel
+            </button>
+            <button type="submit" class="save-btn">
+                <i class="fas fa-save"></i> Save Record
+            </button>
+        </div>
+    </form>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDFT7z-AmRLu8lig84D_tKA9OhF7joW9c0",
+  authDomain: "sasosystem-206d0.firebaseapp.com",
+  projectId: "sasosystem-206d0",
+  storageBucket: "sasosystem-206d0.firebasestorage.app",
+  messagingSenderId: "526763192518",
+  appId: "1:526763192518:web:b1f544270439e8664067c7"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const urlParams = new URLSearchParams(window.location.search);
+const docId = urlParams.get('id');
+
+document.getElementById('offenseDate').valueAsDate = new Date();
+
+let currentData = {};
+
+async function loadStudent() {
+    if(!docId) return window.location.href='records.html'; // Fixed redirect to records.html
+
+    const docRef = doc(db, "studentRecords", docId);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+        currentData = docSnap.data();
+        // Updated display with icon
+        document.getElementById("studentNameDisplay").innerHTML = `<i class="fas fa-user-graduate"></i> &nbsp; ${currentData.name || 'Unknown'} <br><small>(${currentData.student_number || 'No ID'})</small>`;
+    } else {
+        alert("Student record not found!");
+        window.location.href='records.html';
+    }
+}
+
+loadStudent();
+
+function countOffensesInString(str) {
+    if (!str || str.trim() === "") return 0;
+    return str.split("|").length;
+}
+
+document.getElementById("offenseForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const type = document.getElementById("offenseType").value; // 'major' or 'minor'
+    const desc = document.getElementById("offenseDesc").value;
+    const date = document.getElementById("offenseDate").value;
+
+    if(!desc || !date) return alert("Please fill in all fields.");
+
+    const offenseWithDate = `${desc} (${date})`;
+    const button = document.querySelector(".save-btn");
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+    try {
+        let newMajor = currentData.major || "";
+        let newMinor = currentData.minor || "";
+
+        if(type === "major") {
+            newMajor = newMajor ? newMajor + " | " + offenseWithDate : offenseWithDate;
+        } else {
+            newMinor = newMinor ? newMinor + " | " + offenseWithDate : offenseWithDate;
+        }
+
+        const totalMajor = countOffensesInString(newMajor);
+        const totalMinor = countOffensesInString(newMinor);
+        const grandTotal = totalMajor + totalMinor;
+
+        const updatedData = {
+            major: newMajor,
+            minor: newMinor,
+            offense_count: grandTotal, 
+            last_updated: serverTimestamp()
+        };
+
+        await updateDoc(doc(db, "studentRecords", docId), updatedData);
+
+        alert(`Offense added! Total Offenses: ${grandTotal}`);
+        window.location.href = 'records.html'; 
+    } catch(err) {
+        console.error(err);
+        alert("Error: " + err.message);
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-save"></i> Save Record';
+    }
+});
+</script>
+
+</body>
+</html>

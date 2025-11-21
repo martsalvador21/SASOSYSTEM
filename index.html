@@ -71,6 +71,8 @@ button + button:hover { background: #3e8e41; }
     <input type="text" id="course" placeholder="Course/Section" required>
     <input type="text" id="major" placeholder="Major Offense">
     <input type="text" id="minor" placeholder="Minor Offense">
+    <!-- Readonly date field showing current date (saved with the record as well) -->
+    <input type="text" id="date" placeholder="Date (YYYY-MM-DD)" readonly aria-label="Current date">
     <button type="button" id="saveBtn">💾 Save Record</button>
     <button type="button" onclick="window.location='records.html'">📋 View Records</button>
     <button type="button" onclick="logout()">🚪 Logout</button>
@@ -80,7 +82,7 @@ button + button:hover { background: #3e8e41; }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
-import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -96,6 +98,14 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const status = document.getElementById("status");
+const dateInput = document.getElementById("date");
+
+// Fill the date field with today's date in YYYY-MM-DD
+const setTodayDate = () => {
+    const today = new Date().toISOString().split('T')[0];
+    dateInput.value = today;
+};
+setTodayDate();
 
 onAuthStateChanged(auth, user => {
     if(!user) window.location.href = "login.html";
@@ -112,6 +122,7 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
     const course = document.getElementById("course").value.trim();
     const major = document.getElementById("major").value.trim();
     const minor = document.getElementById("minor").value.trim();
+    const clientDate = dateInput.value; // YYYY-MM-DD shown to user
 
     if(!name || !student_number || !course){
         status.style.color = "red";
@@ -120,13 +131,25 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
     }
 
     try {
-        await addDoc(collection(db, "studentRecords"), { name, student_number, course, major, minor });
+        // Save timestamps on the server (serverTimestamp) and also store the client-visible date string
+        await addDoc(collection(db, "studentRecords"), {
+            name,
+            student_number,
+            course,
+            major,
+            minor,
+            date: clientDate,         // human-readable date string (YYYY-MM-DD)
+            created_at: serverTimestamp(), // Firestore server timestamp
+            last_updated: serverTimestamp()
+        });
         status.style.color = "green";
         status.innerText = "Record saved successfully!";
         document.getElementById("recordForm").reset();
+        setTodayDate(); // restore date field after reset
     } catch (err) {
         status.style.color = "red";
         status.innerText = "Error saving record: " + err.message;
+        console.error("Add record error:", err);
     }
 });
 </script>
